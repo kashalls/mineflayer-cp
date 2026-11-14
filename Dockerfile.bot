@@ -1,0 +1,25 @@
+FROM node:24-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/bot/package.json apps/bot/
+COPY apps/panel/package.json apps/panel/
+RUN npm ci --ignore-scripts --include-workspace-root -w @mineflayer-cp/shared -w @mineflayer-cp/bot
+COPY packages/shared packages/shared
+COPY apps/bot apps/bot
+RUN npm run build -w @mineflayer-cp/shared && npm run build -w @mineflayer-cp/bot
+
+FROM node:24-slim
+ENV NODE_ENV=production
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/bot/package.json apps/bot/
+COPY apps/panel/package.json apps/panel/
+RUN npm ci --omit=dev --ignore-scripts -w @mineflayer-cp/shared -w @mineflayer-cp/bot && npm cache clean --force
+COPY --from=build /app/packages/shared/dist packages/shared/dist
+COPY --from=build /app/apps/bot/dist apps/bot/dist
+USER 1000
+WORKDIR /app/apps/bot
+EXPOSE 8080
+CMD ["node", "dist/main.js"]

@@ -1,0 +1,23 @@
+{
+  "name": "@mineflayer-cp/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@mineflayer-cp/shared": "^0.1.0",
+    "@modelcontextprotocol/node": "^2.1.2",
+    "@modelcontextprotocol/server": "^2.4.0",
+    "httpxy": "^0.5.6",
+    "mineflayer": "^4.39.0",
+    "mineflayer-auto-eat": "^5.0.3",
+    "mineflayer-web-inventory": "^2.2.0",
+    "prismarine-viewer": "^1.33.0",
+    "vec3": "^0.1.10",
+    "zod": "^4.6.7"
+  }
+}

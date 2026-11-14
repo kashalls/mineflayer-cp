@@ -1,0 +1,62 @@
+version: '3'
+
+vars:
+  REGISTRY: '{{.REGISTRY | default "localhost"}}'
+  TAG: '{{.TAG | default "dev"}}'
+
+tasks:
+  install:
+    desc: Install dependencies
+    cmds:
+      - npm install
+
+  build:
+    desc: Build shared, bot and panel
+    cmds:
+      - npm run build
+
+  test:
+    desc: Type-check and run unit tests
+    cmds:
+      - npm run build -w @mineflayer-cp/shared
+      - npm run typecheck
+      - npm test
+
+  dev:panel:
+    desc: Run the panel in dev mode without Kubernetes, talking to a bot on localhost:8081
+    dir: apps/panel
+    env:
+      NUXT_ADMIN_PASSWORD: admin
+      NUXT_SESSION_SECRET: dev-session-secret-0123456789abcdef
+      NUXT_INTERNAL_TOKEN: dev-internal
+      NUXT_MCP_TOKEN: dev-mcp
+      NUXT_ENCRYPTION_KEY: dev-encryption
+      NUXT_K8S_ENABLED: 'false'
+      NUXT_BOT_URL_TEMPLATE: http://localhost:8081
+    cmds:
+      - npx nuxt dev
+
+  dev:bot:
+    desc: Run one bot against the dev panel (task dev:bot -- <account-id>)
+    dir: apps/bot
+    env:
+      BOT_ID: '{{.CLI_ARGS}}'
+      PANEL_URL: http://localhost:3000
+      INTERNAL_TOKEN: dev-internal
+      PORT: '8081'
+    cmds:
+      - npm run build -w @mineflayer-cp/shared
+      - npm run build
+      - node dist/main.js
+
+  images:
+    desc: Build both container images (REGISTRY=..., TAG=...)
+    cmds:
+      - docker build -f Dockerfile.panel -t {{.REGISTRY}}/mineflayer-cp-panel:{{.TAG}} .
+      - docker build -f Dockerfile.bot -t {{.REGISTRY}}/mineflayer-cp-bot:{{.TAG}} .
+
+  chart:lint:
+    desc: Lint and render the Helm chart
+    cmds:
+      - helm lint charts/mineflayer-cp
+      - helm template test charts/mineflayer-cp > /dev/null

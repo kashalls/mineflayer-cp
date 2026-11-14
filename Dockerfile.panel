@@ -1,0 +1,21 @@
+FROM node:24-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/bot/package.json apps/bot/
+COPY apps/panel/package.json apps/panel/
+RUN npm ci --ignore-scripts --include-workspace-root -w @mineflayer-cp/shared -w @mineflayer-cp/panel
+COPY packages/shared packages/shared
+COPY apps/panel apps/panel
+RUN npm run build -w @mineflayer-cp/shared && npm run build -w @mineflayer-cp/panel
+
+# Nitro's output is self-contained, including the node_modules it needs.
+FROM node:24-slim
+ENV NODE_ENV=production NUXT_DATA_DIR=/data PORT=3000
+WORKDIR /app
+COPY --from=build /app/apps/panel/.output ./
+RUN mkdir /data && chown 1000:1000 /data
+USER 1000
+VOLUME /data
+EXPOSE 3000
+CMD ["node", "server/index.mjs"]

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: mineflayer-cp
+description: Control plane for headless Minecraft accounts (mineflayer) with one bot pod per account
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

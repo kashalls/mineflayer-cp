@@ -1,0 +1,69 @@
+image:
+  # Panel image, built from Dockerfile.panel.
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Used by the panel pod and by every bot pod.
+imagePullSecrets: []
+
+bot:
+  image:
+    # Bot image, built from Dockerfile.bot. One pod per account runs it.
+    repository: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Applied to every bot pod.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 192Mi
+    limits:
+      memory: 768Mi
+
+secret:
+  # Name of an existing Secret with the keys adminPassword, sessionSecret (32+ characters),
+  # internalToken, mcpToken and encryptionKey. When empty the chart creates one.
+  existingSecret: ""
+  # Panel login password. Random when empty; read it back from the Secret.
+  adminPassword: ""
+  # Bearer token for the /mcp/<account> endpoints. Random when empty.
+  mcpToken: ""
+
+persistence:
+  # Holds the SQLite database (accounts, scripts, encrypted Microsoft sign-ins).
+  size: 1Gi
+  storageClass: ""
+  existingClaim: ""
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 192Mi
+  limits:
+    memory: 512Mi
+
+# The session cookie is marked Secure, so expose the panel over HTTPS.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: ""
+  tlsSecretName: ""
+
+httpRoute:
+  enabled: false
+  hostnames: []
+  parentRefs: []
+
+networkPolicy:
+  # Only let the panel reach the bot pods.
+  enabled: false
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

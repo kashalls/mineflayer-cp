@@ -1,0 +1,108 @@
+{{- $fullname := include "mineflayer-cp.fullname" . }}
+{{- $secret := include "mineflayer-cp.secretName" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "mineflayer-cp.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # SQLite on a ReadWriteOnce volume: never run two panels at once.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "mineflayer-cp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mineflayer-cp.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $fullname }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: panel
+          image: "{{ required "image.repository is required" .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: PORT
+              value: "3000"
+            - name: NUXT_DATA_DIR
+              value: /data
+            {{- range $env, $key := dict "NUXT_ADMIN_PASSWORD" "adminPassword" "NUXT_SESSION_SECRET" "sessionSecret" "NUXT_INTERNAL_TOKEN" "internalToken" "NUXT_MCP_TOKEN" "mcpToken" "NUXT_ENCRYPTION_KEY" "encryptionKey" }}
+            - name: {{ $env }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $secret }}
+                  key: {{ $key }}
+            {{- end }}
+            - name: NUXT_K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NUXT_K8S_BOT_IMAGE
+              value: "{{ required "bot.image.repository is required" .Values.bot.image.repository }}:{{ .Values.bot.image.tag | default .Chart.AppVersion }}"
+            - name: NUXT_K8S_BOT_IMAGE_PULL_POLICY
+              value: {{ .Values.bot.image.pullPolicy }}
+            - name: NUXT_K8S_BOT_IMAGE_PULL_SECRETS
+              value: {{ .Values.imagePullSecrets | toJson | quote }}
+            - name: NUXT_K8S_BOT_RESOURCES
+              value: {{ .Values.bot.resources | toJson | quote }}
+            - name: NUXT_K8S_OWNER_DEPLOYMENT
+              value: {{ $fullname }}
+            - name: NUXT_K8S_SECRET_NAME
+              value: {{ $secret }}
+            - name: NUXT_K8S_PANEL_URL
+              value: "http://{{ $fullname }}.{{ .Release.Namespace }}.svc:{{ .Values.service.port }}"
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /api/session
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /api/session
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Values.persistence.existingClaim | default $fullname }}
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
