@@ -51,17 +51,16 @@ Images are built by the `Images` workflow and published to GHCR:
 | `sha-<short sha>` | every build |
 | `<version>`, `<major>.<minor>` | a `v<version>` git tag is pushed |
 
-Install the chart from a checkout of this repository:
+The chart is published to `oci://ghcr.io/kashalls/charts/mineflayer-cp` whenever a `v<version>` tag is pushed, with the same version as the images:
 
 ```bash
-helm install mc charts/mineflayer-cp -n minecraft --create-namespace \
+helm install mc oci://ghcr.io/kashalls/charts/mineflayer-cp --version <version> -n minecraft --create-namespace \
   --set image.repository=ghcr.io/kashalls/mineflayer-cp-panel \
   --set bot.image.repository=ghcr.io/kashalls/mineflayer-cp-bot \
-  --set image.tag=main --set bot.image.tag=main \
   --set ingress.enabled=true --set ingress.host=mc.example.com
 ```
 
-Both tags default to the chart's `appVersion`, so they can be left out once a matching `v<version>` tag has been published. Prefer a `sha-` or version tag over `main` for anything long-lived: the tag only changes which image a pod pulls when it is next created.
+Both image tags default to the chart's version. To run an unreleased build, install from a checkout (`charts/mineflayer-cp`) and set `image.tag` and `bot.image.tag` to a `sha-` tag.
 
 If the GHCR packages are private, create a pull secret and list it under `imagePullSecrets`; it is used by the panel and by every bot pod:
 
