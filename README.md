@@ -40,18 +40,38 @@ Scripts are JavaScript run as an async function inside the bot process with `bot
 
 ## Deploy
 
-Build and push both images, then install the chart:
+Images are built by the `Images` workflow and published to GHCR:
+
+- `ghcr.io/kashalls/mineflayer-cp-panel`
+- `ghcr.io/kashalls/mineflayer-cp-bot`
+
+| Tag | Published when |
+|---|---|
+| `latest`, `main` | every push to `main` |
+| `sha-<short sha>` | every build |
+| `<version>`, `<major>.<minor>` | a `v<version>` git tag is pushed |
+
+Install the chart from a checkout of this repository:
 
 ```bash
-task images REGISTRY=registry.example.com/me TAG=0.1.0
-docker push registry.example.com/me/mineflayer-cp-panel:0.1.0
-docker push registry.example.com/me/mineflayer-cp-bot:0.1.0
-
 helm install mc charts/mineflayer-cp -n minecraft --create-namespace \
-  --set image.repository=registry.example.com/me/mineflayer-cp-panel \
-  --set bot.image.repository=registry.example.com/me/mineflayer-cp-bot \
+  --set image.repository=ghcr.io/kashalls/mineflayer-cp-panel \
+  --set bot.image.repository=ghcr.io/kashalls/mineflayer-cp-bot \
+  --set image.tag=main --set bot.image.tag=main \
   --set ingress.enabled=true --set ingress.host=mc.example.com
 ```
+
+Both tags default to the chart's `appVersion`, so they can be left out once a matching `v<version>` tag has been published. Prefer a `sha-` or version tag over `main` for anything long-lived: the tag only changes which image a pod pulls when it is next created.
+
+If the GHCR packages are private, create a pull secret and list it under `imagePullSecrets`; it is used by the panel and by every bot pod:
+
+```bash
+kubectl -n minecraft create secret docker-registry ghcr \
+  --docker-server=ghcr.io --docker-username=<github user> --docker-password=<token with read:packages>
+# then add: --set 'imagePullSecrets[0].name=ghcr'
+```
+
+To build the images yourself instead, run `task images REGISTRY=<registry> TAG=<tag>` and push them.
 
 The chart generates the admin password and MCP token unless you set them or point `secret.existingSecret` at your own Secret:
 
